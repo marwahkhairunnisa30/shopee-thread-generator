@@ -31,8 +31,12 @@ interface FormState {
   hook: string;
   tweetCount: number;
   idea: string;
+  productDesc: string;
   ctaType: "bio" | "inline";
   affiliateLink: string;
+  hasComplement: boolean;
+  complementDesc: string;
+  complementLink: string;
 }
 
 export default function Home() {
@@ -41,14 +45,20 @@ export default function Home() {
     hook: "",
     tweetCount: 5,
     idea: "",
+    productDesc: "",
     ctaType: "bio",
     affiliateLink: "",
+    hasComplement: false,
+    complementDesc: "",
+    complementLink: "",
   });
   const [tweets, setTweets] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
+
+  const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
 
   const handleGenerate = async () => {
     if (form.idea.trim().length < 20) {
@@ -57,6 +67,10 @@ export default function Home() {
     }
     if (form.ctaType === "inline" && !form.affiliateLink.trim()) {
       setError("Masukin link afiliasi dulu buat inline CTA!");
+      return;
+    }
+    if (form.hasComplement && !form.complementLink.trim()) {
+      setError("Masukin link produk complimentary-nya!");
       return;
     }
 
@@ -73,8 +87,11 @@ export default function Home() {
           hook: form.hook || undefined,
           tweetCount: form.tweetCount,
           idea: form.idea,
+          productDesc: form.productDesc || undefined,
           ctaType: form.ctaType,
           affiliateLink: form.affiliateLink || undefined,
+          complementDesc: form.hasComplement ? form.complementDesc || undefined : undefined,
+          complementLink: form.hasComplement ? form.complementLink || undefined : undefined,
         }),
       });
 
@@ -128,20 +145,11 @@ export default function Home() {
 
           {/* Format */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Jenis Konten
-            </label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Jenis Konten</label>
             <div className="grid grid-cols-2 gap-1.5">
               {FORMAT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setForm((f) => ({ ...f, format: opt.value }))}
-                  className={`text-left p-2.5 rounded-xl border-2 transition-all ${
-                    form.format === opt.value
-                      ? "border-orange-400 bg-orange-50"
-                      : "border-gray-100 bg-gray-50 active:bg-gray-100"
-                  }`}
-                >
+                <button key={opt.value} onClick={() => set({ format: opt.value })}
+                  className={`text-left p-2.5 rounded-xl border-2 transition-all ${form.format === opt.value ? "border-orange-400 bg-orange-50" : "border-gray-100 bg-gray-50 active:bg-gray-100"}`}>
                   <div className="text-xs font-semibold text-gray-800">{opt.label}</div>
                   <div className="text-xs text-gray-500 mt-0.5 leading-tight">{opt.desc}</div>
                 </button>
@@ -156,15 +164,8 @@ export default function Home() {
             </label>
             <div className="grid grid-cols-2 gap-1.5 mb-2">
               {HOOK_OPTIONS.map((h) => (
-                <button
-                  key={h.value}
-                  onClick={() => setForm((f) => ({ ...f, hook: f.hook === h.value ? "" : h.value }))}
-                  className={`text-left px-3 py-2 rounded-xl border-2 text-xs font-medium transition-all ${
-                    form.hook === h.value
-                      ? "border-orange-400 bg-orange-50 text-orange-700"
-                      : "border-gray-100 bg-gray-50 text-gray-700 active:bg-gray-100"
-                  }`}
-                >
+                <button key={h.value} onClick={() => set({ hook: form.hook === h.value ? "" : h.value })}
+                  className={`text-left px-3 py-2 rounded-xl border-2 text-xs font-medium transition-all ${form.hook === h.value ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-100 bg-gray-50 text-gray-700 active:bg-gray-100"}`}>
                   {h.label}
                 </button>
               ))}
@@ -172,8 +173,7 @@ export default function Home() {
             {selectedHook && (
               <div className="bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
                 <p className="text-xs text-orange-700 leading-relaxed">
-                  <span className="font-semibold">Contoh: </span>
-                  &ldquo;{selectedHook.example}&rdquo;
+                  <span className="font-semibold">Contoh: </span>&ldquo;{selectedHook.example}&rdquo;
                 </p>
               </div>
             )}
@@ -181,20 +181,11 @@ export default function Home() {
 
           {/* Tweet Count */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Jumlah Tweet
-            </label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Jumlah Tweet</label>
             <div className="flex gap-2">
               {TWEET_COUNTS.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setForm((f) => ({ ...f, tweetCount: n }))}
-                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${
-                    form.tweetCount === n
-                      ? "border-orange-400 bg-orange-400 text-white"
-                      : "border-gray-100 bg-gray-50 text-gray-600 active:bg-gray-100"
-                  }`}
-                >
+                <button key={n} onClick={() => set({ tweetCount: n })}
+                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${form.tweetCount === n ? "border-orange-400 bg-orange-400 text-white" : "border-gray-100 bg-gray-50 text-gray-600 active:bg-gray-100"}`}>
                   {n}
                 </button>
               ))}
@@ -203,65 +194,75 @@ export default function Home() {
 
           {/* Idea */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Ide / Cerita Awal
-            </label>
-            <textarea
-              value={form.idea}
-              onChange={(e) => setForm((f) => ({ ...f, idea: e.target.value }))}
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Ide / Cerita Awal</label>
+            <textarea value={form.idea} onChange={(e) => set({ idea: e.target.value })}
               placeholder="Ceritain produknya, pengalaman lo, atau angle yang mau lo pakai. Makin detail makin bagus hasilnya."
-              rows={4}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none"
-            />
+              rows={3}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none" />
             <div className={`text-xs mt-1 text-right ${form.idea.length < 20 ? "text-rose-400" : "text-gray-400"}`}>
               {form.idea.length} karakter {form.idea.length < 20 && "(min 20)"}
             </div>
           </div>
 
-          {/* CTA */}
+          {/* Product Description */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Call to Action
+              Deskripsi Produk Utama <span className="text-gray-400 font-normal normal-case">(opsional — copas dari Shopee)</span>
             </label>
+            <textarea value={form.productDesc} onChange={(e) => set({ productDesc: e.target.value })}
+              placeholder="Copas deskripsi produk dari halaman Shopee di sini. AI akan baca keunggulan & fitur utamanya untuk dimasukkan ke thread."
+              rows={4}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none" />
+          </div>
+
+          {/* CTA */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">CTA Produk Utama</label>
             <div className="flex gap-2 mb-2">
               {(["bio", "inline"] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setForm((f) => ({ ...f, ctaType: type }))}
-                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
-                    form.ctaType === type
-                      ? "border-orange-400 bg-orange-50 text-orange-700"
-                      : "border-gray-100 bg-gray-50 text-gray-600 active:bg-gray-100"
-                  }`}
-                >
+                <button key={type} onClick={() => set({ ctaType: type })}
+                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-medium transition-all ${form.ctaType === type ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-100 bg-gray-50 text-gray-600 active:bg-gray-100"}`}>
                   {type === "bio" ? "🔗 Link di Bio" : "📎 Inline Link"}
                 </button>
               ))}
             </div>
             {form.ctaType === "inline" && (
-              <input
-                type="url"
-                value={form.affiliateLink}
-                onChange={(e) => setForm((f) => ({ ...f, affiliateLink: e.target.value }))}
+              <input type="url" value={form.affiliateLink} onChange={(e) => set({ affiliateLink: e.target.value })}
                 placeholder="https://shope.ee/your-affiliate-link"
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent"
-              />
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent" />
+            )}
+          </div>
+
+          {/* Complementary Product */}
+          <div>
+            <button onClick={() => set({ hasComplement: !form.hasComplement })}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all text-sm font-medium ${form.hasComplement ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-100 bg-gray-50 text-gray-600 active:bg-gray-100"}`}>
+              <span>➕ Produk Complimentary</span>
+              <span className="text-xs text-gray-400">{form.hasComplement ? "Aktif" : "Opsional"}</span>
+            </button>
+
+            {form.hasComplement && (
+              <div className="mt-2 space-y-2 border border-orange-100 rounded-xl p-3 bg-orange-50/50">
+                <p className="text-xs text-gray-500">Produk ini akan di-mention secara natural sebagai pelengkap di thread.</p>
+                <textarea value={form.complementDesc} onChange={(e) => set({ complementDesc: e.target.value })}
+                  placeholder="Copas deskripsi produk complimentary dari Shopee (opsional tapi bikin thread lebih rich)"
+                  rows={3}
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none bg-white" />
+                <input type="url" value={form.complementLink} onChange={(e) => set({ complementLink: e.target.value })}
+                  placeholder="Link afiliasi produk complimentary (wajib)"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent bg-white" />
+              </div>
             )}
           </div>
 
           {/* Error */}
           {error && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3 py-2.5 rounded-xl">
-              {error}
-            </div>
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3 py-2.5 rounded-xl">{error}</div>
           )}
 
           {/* Submit */}
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            className="w-full py-3.5 bg-gradient-to-r from-orange-400 to-rose-500 text-white font-semibold rounded-xl transition-all active:opacity-80 disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-          >
+          <button onClick={handleGenerate} disabled={loading}
+            className="w-full py-3.5 bg-gradient-to-r from-orange-400 to-rose-500 text-white font-semibold rounded-xl transition-all active:opacity-80 disabled:opacity-60 disabled:cursor-not-allowed text-sm">
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -270,9 +271,7 @@ export default function Home() {
                 </svg>
                 Lagi nulis thread...
               </span>
-            ) : (
-              "✨ Generate Thread"
-            )}
+            ) : "✨ Generate Thread"}
           </button>
         </div>
 
@@ -280,15 +279,9 @@ export default function Home() {
         {tweets.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-gray-800 text-sm">
-                Thread siap! {tweets.length} tweet 🎉
-              </h2>
-              <button
-                onClick={copyAll}
-                className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
-                  copiedAll ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600 active:bg-gray-200"
-                }`}
-              >
+              <h2 className="font-bold text-gray-800 text-sm">Thread siap! {tweets.length} tweet 🎉</h2>
+              <button onClick={copyAll}
+                className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${copiedAll ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600 active:bg-gray-200"}`}>
                 {copiedAll ? "✓ Copied all!" : "Copy semua"}
               </button>
             </div>
@@ -300,12 +293,8 @@ export default function Home() {
                 <div key={idx} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm text-gray-800 leading-relaxed flex-1 whitespace-pre-wrap">{tweet}</p>
-                    <button
-                      onClick={() => copyTweet(tweet, idx)}
-                      className={`shrink-0 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all ${
-                        copied === idx ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500 active:bg-gray-200"
-                      }`}
-                    >
+                    <button onClick={() => copyTweet(tweet, idx)}
+                      className={`shrink-0 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all ${copied === idx ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500 active:bg-gray-200"}`}>
                       {copied === idx ? "✓" : "Copy"}
                     </button>
                   </div>
@@ -319,10 +308,8 @@ export default function Home() {
               );
             })}
 
-            <button
-              onClick={handleGenerate}
-              className="w-full py-3 border-2 border-dashed border-gray-200 text-gray-500 text-sm font-medium rounded-xl active:bg-gray-50 transition-all"
-            >
+            <button onClick={handleGenerate}
+              className="w-full py-3 border-2 border-dashed border-gray-200 text-gray-500 text-sm font-medium rounded-xl active:bg-gray-50 transition-all">
               🔄 Generate ulang
             </button>
           </div>

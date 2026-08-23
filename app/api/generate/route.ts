@@ -117,17 +117,28 @@ function buildUserPrompt(
   idea: string,
   ctaType: "bio" | "inline",
   affiliateLink?: string,
-  hook?: string
+  hook?: string,
+  productDesc?: string,
+  complementDesc?: string,
+  complementLink?: string
 ): string {
   const formatLabel = FORMAT_LABELS[format] ?? format;
 
   const ctaInstruction =
     ctaType === "bio"
-      ? "Arahkan ke link di bio secara natural di tweet terakhir"
-      : `Masukkan link afiliasi ini di tweet terakhir: ${affiliateLink}`;
+      ? "Arahkan ke link di bio secara natural di tweet terakhir untuk produk utama"
+      : `Masukkan link afiliasi produk utama ini di tweet terakhir: ${affiliateLink}`;
 
   const hookInstruction = hook && HOOK_LABELS[hook]
     ? `\nTIPE HOOK TWEET 1: ${HOOK_LABELS[hook]}`
+    : "";
+
+  const productDescSection = productDesc
+    ? `\n\nDESKRIPSI PRODUK UTAMA (gunakan keunggulan & fitur ini secara natural di thread, jangan copy-paste mentah):\n${productDesc.slice(0, 1500)}`
+    : "";
+
+  const complementSection = complementLink
+    ? `\n\nPRODUK COMPLIMENTARY: Ada produk pelengkap yang bisa di-mention secara natural di thread (bukan tweet utama) sebagai rekomendasi tambahan.${complementDesc ? `\nDeskripsi produk complimentary:\n${complementDesc.slice(0, 800)}` : ""}\nLink produk complimentary: ${complementLink}\nCara menyebut: natural, kayak "oh btw yang ini juga bagus buat [konteks]" — bukan promosi terpisah. Masukkan di 1-2 tweet tengah atau di tweet sebelum terakhir.`
     : "";
 
   return `Buatkan Twitter thread afiliasi Shopee dengan detail berikut:
@@ -135,7 +146,7 @@ function buildUserPrompt(
 JENIS KONTEN: ${formatLabel}
 JUMLAH TWEET: ${tweetCount} tweet (format [1/${tweetCount}] sampai [${tweetCount}/${tweetCount}])
 IDE AWAL: ${idea}
-CTA: ${ctaInstruction}${hookInstruction}
+CTA: ${ctaInstruction}${hookInstruction}${productDescSection}${complementSection}
 
 Ingat: max 280 karakter per tweet, mulai langsung dari hook.`;
 }
@@ -143,7 +154,7 @@ Ingat: max 280 karakter per tweet, mulai langsung dari hook.`;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { format, tweetCount, idea, ctaType, affiliateLink, hook } = body;
+    const { format, tweetCount, idea, ctaType, affiliateLink, hook, productDesc, complementDesc, complementLink } = body;
 
     if (!format || !tweetCount || !idea || !ctaType) {
       return NextResponse.json(
@@ -180,12 +191,15 @@ export async function POST(req: NextRequest) {
       idea.trim(),
       ctaType,
       affiliateLink?.trim(),
-      hook
+      hook,
+      productDesc?.trim(),
+      complementDesc?.trim(),
+      complementLink?.trim()
     );
 
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1500,
+      max_tokens: 2000,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
     });
