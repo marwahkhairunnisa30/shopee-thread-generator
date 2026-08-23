@@ -98,12 +98,26 @@ const FORMAT_LABELS: Record<string, string> = {
     "Tips Kehidupan — share tips/hack, produk sebagai enabler bukan bintang utama",
 };
 
+const HOOK_LABELS: Record<string, string> = {
+  confession: "Confession hook — mulai dengan ngaku dosa/kesalahan dulu biar relatable",
+  number: "Number hook — pakai angka spesifik di hook, lebih credible dari kata-kata",
+  controversy: "Controversy hook — statement yang bikin orang mau debat atau penasaran",
+  before_after: "Before/After hook — tease transformasi tanpa spoiler di tweet pertama",
+  curiosity_gap: "Curiosity gap hook — kasih info setengah, paksa orang lanjut baca",
+  relatability: "Relatability hook — pukul pain point yang semua orang ngerasain",
+  discovery: "Discovery/Urgency hook — framing kayak baru nemu rahasia yang orang lain belum tau",
+  social_proof: "Social proof hook — orang lain udah duluan, bikin FOMO",
+  plot_twist: "Plot twist hook — setup ekspektasi biasa, langsung balik di kalimat berikutnya",
+  question: "Question hook — tanya sesuatu yang audience pasti jawab 'iya' dalam hati",
+};
+
 function buildUserPrompt(
   format: string,
   tweetCount: number,
   idea: string,
   ctaType: "bio" | "inline",
-  affiliateLink?: string
+  affiliateLink?: string,
+  hook?: string
 ): string {
   const formatLabel = FORMAT_LABELS[format] ?? format;
 
@@ -112,12 +126,16 @@ function buildUserPrompt(
       ? "Arahkan ke link di bio secara natural di tweet terakhir"
       : `Masukkan link afiliasi ini di tweet terakhir: ${affiliateLink}`;
 
+  const hookInstruction = hook && HOOK_LABELS[hook]
+    ? `\nTIPE HOOK TWEET 1: ${HOOK_LABELS[hook]}`
+    : "";
+
   return `Buatkan Twitter thread afiliasi Shopee dengan detail berikut:
 
 JENIS KONTEN: ${formatLabel}
 JUMLAH TWEET: ${tweetCount} tweet (format [1/${tweetCount}] sampai [${tweetCount}/${tweetCount}])
 IDE AWAL: ${idea}
-CTA: ${ctaInstruction}
+CTA: ${ctaInstruction}${hookInstruction}
 
 Ingat: max 280 karakter per tweet, mulai langsung dari hook.`;
 }
@@ -125,7 +143,7 @@ Ingat: max 280 karakter per tweet, mulai langsung dari hook.`;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { format, tweetCount, idea, ctaType, affiliateLink } = body;
+    const { format, tweetCount, idea, ctaType, affiliateLink, hook } = body;
 
     if (!format || !tweetCount || !idea || !ctaType) {
       return NextResponse.json(
@@ -161,7 +179,8 @@ export async function POST(req: NextRequest) {
       Number(tweetCount),
       idea.trim(),
       ctaType,
-      affiliateLink?.trim()
+      affiliateLink?.trim(),
+      hook
     );
 
     const response = await client.messages.create({
