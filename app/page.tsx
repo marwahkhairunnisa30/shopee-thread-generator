@@ -61,23 +61,11 @@ export default function Home() {
   const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
 
   const handleGenerate = async () => {
-    if (form.idea.trim().length < 20) {
-      setError("Ide minimal 20 karakter ya bestie 👀");
-      return;
-    }
-    if (form.ctaType === "inline" && !form.affiliateLink.trim()) {
-      setError("Masukin link afiliasi dulu buat inline CTA!");
-      return;
-    }
-    if (form.hasComplement && !form.complementLink.trim()) {
-      setError("Masukin link produk complimentary-nya!");
-      return;
-    }
+    if (form.idea.trim().length < 20) { setError("Ide minimal 20 karakter ya bestie 👀"); return; }
+    if (form.ctaType === "inline" && !form.affiliateLink.trim()) { setError("Masukin link afiliasi dulu!"); return; }
+    if (form.hasComplement && !form.complementLink.trim()) { setError("Masukin link produk complimentary-nya!"); return; }
 
-    setError("");
-    setLoading(true);
-    setTweets([]);
-
+    setError(""); setLoading(true); setTweets([]);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -94,7 +82,6 @@ export default function Home() {
           complementLink: form.hasComplement ? form.complementLink || undefined : undefined,
         }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal generate thread");
       setTweets(data.tweets);
@@ -126,148 +113,223 @@ export default function Home() {
   const selectedHook = HOOK_OPTIONS.find((h) => h.value === form.hook);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-rose-50">
+    <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
       {/* Header */}
-      <header className="border-b border-orange-100 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-rose-500 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
-            S
-          </div>
+      <header style={{
+        borderBottom: "1px solid var(--border)",
+        background: "rgba(11,11,16,0.85)",
+        backdropFilter: "blur(12px)",
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
+      }}>
+        <div style={{ maxWidth: 640, margin: "0 auto", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "var(--text-primary)", fontWeight: 700, fontSize: 13, flexShrink: 0,
+          }}>S</div>
           <div>
-            <h1 className="font-bold text-gray-900 text-sm leading-none">Shopee Thread Generator</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Bikin konten afiliasi yang ga keliatan iklan</p>
+            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)", lineHeight: 1 }}>Shopee Thread Generator</div>
+            <div style={{ fontSize: 11, color: "var(--text-45)", marginTop: 3 }}>Bikin konten afiliasi yang ga keliatan iklan</div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-3 py-4 space-y-4">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-5">
+      <main style={{ maxWidth: 640, margin: "0 auto", padding: "16px 16px 40px" }}>
+        <div style={{
+          background: "var(--bg-l2)",
+          border: "1px solid var(--border)",
+          borderRadius: 20,
+          padding: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+        }}>
 
           {/* Format */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Jenis Konten</label>
-            <div className="grid grid-cols-2 gap-1.5">
+          <Section label="Jenis Konten">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {FORMAT_OPTIONS.map((opt) => (
-                <button key={opt.value} onClick={() => set({ format: opt.value })}
-                  className={`text-left p-2.5 rounded-xl border-2 transition-all ${form.format === opt.value ? "border-orange-400 bg-orange-50" : "border-gray-100 bg-gray-50 active:bg-gray-100"}`}>
-                  <div className="text-xs font-semibold text-gray-800">{opt.label}</div>
-                  <div className="text-xs text-gray-500 mt-0.5 leading-tight">{opt.desc}</div>
+                <button key={opt.value} onClick={() => set({ format: opt.value })} style={{
+                  textAlign: "left", padding: "10px 12px", borderRadius: 14,
+                  border: `1.5px solid ${form.format === opt.value ? "var(--accent)" : "var(--border)"}`,
+                  background: form.format === opt.value ? "rgba(192,48,48,0.12)" : "var(--bg-l1)",
+                  cursor: "pointer", transition: "all 0.2s",
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{opt.label}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-45)", marginTop: 2, lineHeight: 1.4 }}>{opt.desc}</div>
                 </button>
               ))}
             </div>
-          </div>
+          </Section>
 
           {/* Hook */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Tipe Hook <span className="text-gray-400 font-normal normal-case">(opsional)</span>
-            </label>
-            <div className="grid grid-cols-2 gap-1.5 mb-2">
+          <Section label="Tipe Hook" sublabel="opsional">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
               {HOOK_OPTIONS.map((h) => (
-                <button key={h.value} onClick={() => set({ hook: form.hook === h.value ? "" : h.value })}
-                  className={`text-left px-3 py-2 rounded-xl border-2 text-xs font-medium transition-all ${form.hook === h.value ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-100 bg-gray-50 text-gray-700 active:bg-gray-100"}`}>
-                  {h.label}
-                </button>
+                <button key={h.value} onClick={() => set({ hook: form.hook === h.value ? "" : h.value })} style={{
+                  textAlign: "left", padding: "8px 12px", borderRadius: 12,
+                  border: `1.5px solid ${form.hook === h.value ? "var(--accent)" : "var(--border)"}`,
+                  background: form.hook === h.value ? "rgba(192,48,48,0.12)" : "var(--bg-l1)",
+                  fontSize: 12, fontWeight: 500,
+                  color: form.hook === h.value ? "var(--warm-mid)" : "var(--text-70)",
+                  cursor: "pointer", transition: "all 0.2s",
+                }}>{h.label}</button>
               ))}
             </div>
             {selectedHook && (
-              <div className="bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
-                <p className="text-xs text-orange-700 leading-relaxed">
-                  <span className="font-semibold">Contoh: </span>&ldquo;{selectedHook.example}&rdquo;
-                </p>
+              <div style={{
+                background: "rgba(192,48,48,0.08)", border: "1px solid rgba(192,48,48,0.2)",
+                borderRadius: 12, padding: "10px 14px",
+              }}>
+                <span style={{ fontSize: 11, color: "var(--warm-mid)", lineHeight: 1.5 }}>
+                  <strong>Contoh: </strong>&ldquo;{selectedHook.example}&rdquo;
+                </span>
               </div>
             )}
-          </div>
+          </Section>
 
           {/* Tweet Count */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Jumlah Tweet</label>
-            <div className="flex gap-2">
+          <Section label="Jumlah Tweet">
+            <div style={{ display: "flex", gap: 8 }}>
               {TWEET_COUNTS.map((n) => (
-                <button key={n} onClick={() => set({ tweetCount: n })}
-                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${form.tweetCount === n ? "border-orange-400 bg-orange-400 text-white" : "border-gray-100 bg-gray-50 text-gray-600 active:bg-gray-100"}`}>
-                  {n}
-                </button>
+                <button key={n} onClick={() => set({ tweetCount: n })} style={{
+                  flex: 1, padding: "9px 0", borderRadius: 12, fontSize: 14, fontWeight: 600,
+                  border: `1.5px solid ${form.tweetCount === n ? "var(--accent)" : "var(--border)"}`,
+                  background: form.tweetCount === n ? "var(--accent)" : "var(--bg-l1)",
+                  color: form.tweetCount === n ? "#fff" : "var(--text-70)",
+                  cursor: "pointer", transition: "all 0.2s",
+                }}>{n}</button>
               ))}
             </div>
-          </div>
+          </Section>
 
           {/* Idea */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Ide / Cerita Awal</label>
+          <Section label="Ide / Cerita Awal">
             <textarea value={form.idea} onChange={(e) => set({ idea: e.target.value })}
               placeholder="Ceritain produknya, pengalaman lo, atau angle yang mau lo pakai. Makin detail makin bagus hasilnya."
-              rows={3}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none" />
-            <div className={`text-xs mt-1 text-right ${form.idea.length < 20 ? "text-rose-400" : "text-gray-400"}`}>
+              rows={3} style={{
+                width: "100%", padding: "11px 14px", borderRadius: 14,
+                border: "1.5px solid var(--border)", background: "var(--bg-l1)",
+                color: "var(--text-primary)", fontSize: 13, lineHeight: 1.6,
+                outline: "none", resize: "none", fontFamily: "inherit",
+              }}
+              onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
+              onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+            />
+            <div style={{ fontSize: 11, textAlign: "right", marginTop: 4, color: form.idea.length < 20 ? "var(--warm-accent)" : "var(--text-35)" }}>
               {form.idea.length} karakter {form.idea.length < 20 && "(min 20)"}
             </div>
-          </div>
+          </Section>
 
-          {/* Product Description */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Deskripsi Produk Utama <span className="text-gray-400 font-normal normal-case">(opsional — copas dari Shopee)</span>
-            </label>
+          {/* Product Desc */}
+          <Section label="Deskripsi Produk Utama" sublabel="opsional — copas dari Shopee">
             <textarea value={form.productDesc} onChange={(e) => set({ productDesc: e.target.value })}
               placeholder="Copas deskripsi produk dari halaman Shopee di sini. AI akan baca keunggulan & fitur utamanya untuk dimasukkan ke thread."
-              rows={4}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none" />
-          </div>
+              rows={4} style={{
+                width: "100%", padding: "11px 14px", borderRadius: 14,
+                border: "1.5px solid var(--border)", background: "var(--bg-l1)",
+                color: "var(--text-primary)", fontSize: 13, lineHeight: 1.6,
+                outline: "none", resize: "none", fontFamily: "inherit",
+              }}
+              onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
+              onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+            />
+          </Section>
 
           {/* CTA */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">CTA Produk Utama</label>
-            <div className="flex gap-2 mb-2">
+          <Section label="CTA Produk Utama">
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               {(["bio", "inline"] as const).map((type) => (
-                <button key={type} onClick={() => set({ ctaType: type })}
-                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-medium transition-all ${form.ctaType === type ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-100 bg-gray-50 text-gray-600 active:bg-gray-100"}`}>
-                  {type === "bio" ? "🔗 Link di Bio" : "📎 Inline Link"}
-                </button>
+                <button key={type} onClick={() => set({ ctaType: type })} style={{
+                  flex: 1, padding: "9px 0", borderRadius: 12, fontSize: 13, fontWeight: 500,
+                  border: `1.5px solid ${form.ctaType === type ? "var(--accent)" : "var(--border)"}`,
+                  background: form.ctaType === type ? "rgba(192,48,48,0.12)" : "var(--bg-l1)",
+                  color: form.ctaType === type ? "var(--warm-mid)" : "var(--text-70)",
+                  cursor: "pointer", transition: "all 0.2s",
+                }}>{type === "bio" ? "🔗 Link di Bio" : "📎 Inline Link"}</button>
               ))}
             </div>
             {form.ctaType === "inline" && (
               <input type="url" value={form.affiliateLink} onChange={(e) => set({ affiliateLink: e.target.value })}
-                placeholder="https://shope.ee/your-affiliate-link"
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent" />
+                placeholder="https://shope.ee/your-affiliate-link" style={{
+                  width: "100%", padding: "11px 14px", borderRadius: 14,
+                  border: "1.5px solid var(--border)", background: "var(--bg-l1)",
+                  color: "var(--text-primary)", fontSize: 13, outline: "none", fontFamily: "inherit",
+                }}
+                onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
+                onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+              />
             )}
-          </div>
+          </Section>
 
-          {/* Complementary Product */}
+          {/* Complementary */}
           <div>
-            <button onClick={() => set({ hasComplement: !form.hasComplement })}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all text-sm font-medium ${form.hasComplement ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-100 bg-gray-50 text-gray-600 active:bg-gray-100"}`}>
+            <button onClick={() => set({ hasComplement: !form.hasComplement })} style={{
+              width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "11px 14px", borderRadius: 14,
+              border: `1.5px solid ${form.hasComplement ? "var(--accent)" : "var(--border)"}`,
+              background: form.hasComplement ? "rgba(192,48,48,0.12)" : "var(--bg-l1)",
+              color: form.hasComplement ? "var(--warm-mid)" : "var(--text-70)",
+              fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s",
+            }}>
               <span>➕ Produk Complimentary</span>
-              <span className="text-xs text-gray-400">{form.hasComplement ? "Aktif" : "Opsional"}</span>
+              <span style={{ fontSize: 11, color: "var(--text-35)" }}>{form.hasComplement ? "Aktif" : "Opsional"}</span>
             </button>
-
             {form.hasComplement && (
-              <div className="mt-2 space-y-2 border border-orange-100 rounded-xl p-3 bg-orange-50/50">
-                <p className="text-xs text-gray-500">Produk ini akan di-mention secara natural sebagai pelengkap di thread.</p>
+              <div style={{
+                marginTop: 8, padding: 14, borderRadius: 14,
+                border: "1px solid rgba(192,48,48,0.2)", background: "rgba(192,48,48,0.06)",
+                display: "flex", flexDirection: "column", gap: 8,
+              }}>
+                <p style={{ fontSize: 11, color: "var(--text-45)", margin: 0 }}>Produk ini akan di-mention secara natural sebagai pelengkap di thread.</p>
                 <textarea value={form.complementDesc} onChange={(e) => set({ complementDesc: e.target.value })}
-                  placeholder="Copas deskripsi produk complimentary dari Shopee (opsional tapi bikin thread lebih rich)"
-                  rows={3}
-                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none bg-white" />
+                  placeholder="Copas deskripsi produk complimentary dari Shopee (opsional)"
+                  rows={3} style={{
+                    width: "100%", padding: "11px 14px", borderRadius: 12,
+                    border: "1.5px solid var(--border)", background: "var(--bg-l1)",
+                    color: "var(--text-primary)", fontSize: 13, lineHeight: 1.6,
+                    outline: "none", resize: "none", fontFamily: "inherit",
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
+                  onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+                />
                 <input type="url" value={form.complementLink} onChange={(e) => set({ complementLink: e.target.value })}
-                  placeholder="Link afiliasi produk complimentary (wajib)"
-                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent bg-white" />
+                  placeholder="Link afiliasi produk complimentary (wajib)" style={{
+                    width: "100%", padding: "11px 14px", borderRadius: 12,
+                    border: "1.5px solid var(--border)", background: "var(--bg-l1)",
+                    color: "var(--text-primary)", fontSize: 13, outline: "none", fontFamily: "inherit",
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
+                  onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+                />
               </div>
             )}
           </div>
 
           {/* Error */}
           {error && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3 py-2.5 rounded-xl">{error}</div>
+            <div style={{
+              background: "rgba(232,52,43,0.1)", border: "1px solid rgba(232,52,43,0.3)",
+              borderRadius: 12, padding: "10px 14px", fontSize: 12, color: "var(--warm-mid)",
+            }}>{error}</div>
           )}
 
           {/* Submit */}
-          <button onClick={handleGenerate} disabled={loading}
-            className="w-full py-3.5 bg-gradient-to-r from-orange-400 to-rose-500 text-white font-semibold rounded-xl transition-all active:opacity-80 disabled:opacity-60 disabled:cursor-not-allowed text-sm">
+          <button onClick={handleGenerate} disabled={loading} style={{
+            width: "100%", padding: "14px 0",
+            background: loading ? "var(--bg-l3)" : "linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%)",
+            border: "none", borderRadius: 14, color: "#fff",
+            fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer",
+            transition: "opacity 0.2s", opacity: loading ? 0.7 : 1, fontFamily: "inherit",
+          }}>
             {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <svg style={{ animation: "spin 1s linear infinite", width: 16, height: 16 }} viewBox="0 0 24 24" fill="none">
+                  <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
                 Lagi nulis thread...
               </span>
@@ -277,30 +339,46 @@ export default function Home() {
 
         {/* Results */}
         {tweets.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-gray-800 text-sm">Thread siap! {tweets.length} tweet 🎉</h2>
-              <button onClick={copyAll}
-                className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${copiedAll ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600 active:bg-gray-200"}`}>
-                {copiedAll ? "✓ Copied all!" : "Copy semua"}
-              </button>
+          <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                Thread siap! {tweets.length} tweet 🎉
+              </span>
+              <button onClick={copyAll} style={{
+                fontSize: 11, padding: "6px 12px", borderRadius: 8, fontWeight: 500, cursor: "pointer",
+                border: "1px solid var(--border)",
+                background: copiedAll ? "rgba(34,197,94,0.12)" : "var(--bg-l1)",
+                color: copiedAll ? "#4ade80" : "var(--text-70)",
+                transition: "all 0.2s", fontFamily: "inherit",
+              }}>{copiedAll ? "✓ Copied all!" : "Copy semua"}</button>
             </div>
 
             {tweets.map((tweet, idx) => {
               const chars = charCount(tweet);
               const over = chars > 280;
               return (
-                <div key={idx} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm text-gray-800 leading-relaxed flex-1 whitespace-pre-wrap">{tweet}</p>
-                    <button onClick={() => copyTweet(tweet, idx)}
-                      className={`shrink-0 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all ${copied === idx ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500 active:bg-gray-200"}`}>
-                      {copied === idx ? "✓" : "Copy"}
-                    </button>
+                <div key={idx} style={{
+                  background: "var(--bg-l2)", border: "1px solid var(--border)",
+                  borderRadius: 18, padding: 16,
+                }}>
+                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <p style={{ flex: 1, fontSize: 13, color: "var(--text-primary)", lineHeight: 1.65, margin: 0, whiteSpace: "pre-wrap" }}>
+                      {tweet}
+                    </p>
+                    <button onClick={() => copyTweet(tweet, idx)} style={{
+                      flexShrink: 0, fontSize: 11, padding: "5px 10px", borderRadius: 8,
+                      border: "1px solid var(--border)",
+                      background: copied === idx ? "rgba(34,197,94,0.12)" : "var(--bg-l3)",
+                      color: copied === idx ? "#4ade80" : "var(--text-50)",
+                      cursor: "pointer", fontFamily: "inherit", fontWeight: 500,
+                    }}>{copied === idx ? "✓" : "Copy"}</button>
                   </div>
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
-                    <span className="text-xs text-gray-400">Tweet {idx + 1}</span>
-                    <span className={`text-xs font-medium ${over ? "text-rose-500" : chars > 260 ? "text-amber-500" : "text-gray-400"}`}>
+                  <div style={{
+                    display: "flex", justifyContent: "space-between", marginTop: 12,
+                    paddingTop: 12, borderTop: "1px solid var(--border-faint)",
+                  }}>
+                    <span style={{ fontSize: 11, color: "var(--text-35)" }}>Tweet {idx + 1}</span>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: over ? "var(--warm-accent)" : chars > 260 ? "#f59e0b" : "var(--text-35)" }}>
                       {chars}/280 {over && "⚠️"}
                     </span>
                   </div>
@@ -308,17 +386,35 @@ export default function Home() {
               );
             })}
 
-            <button onClick={handleGenerate}
-              className="w-full py-3 border-2 border-dashed border-gray-200 text-gray-500 text-sm font-medium rounded-xl active:bg-gray-50 transition-all">
-              🔄 Generate ulang
-            </button>
+            <button onClick={handleGenerate} style={{
+              width: "100%", padding: "12px 0",
+              border: "1.5px dashed var(--border)", borderRadius: 14,
+              background: "transparent", color: "var(--text-45)",
+              fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+            }}>🔄 Generate ulang</button>
           </div>
         )}
       </main>
 
-      <footer className="text-center text-xs text-gray-400 py-6 mt-2">
+      <footer style={{ textAlign: "center", fontSize: 11, color: "var(--text-35)", paddingBottom: 24 }}>
         Made for Shopee affiliates 🧡 · Powered by Claude
       </footer>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+function Section({ label, sublabel, children }: { label: string; sublabel?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-45)" }}>
+          {label}
+        </span>
+        {sublabel && <span style={{ fontSize: 10, color: "var(--text-35)" }}>({sublabel})</span>}
+      </div>
+      {children}
     </div>
   );
 }
