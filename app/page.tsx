@@ -37,6 +37,7 @@ interface FormState {
   hasComplement: boolean;
   complementDesc: string;
   complementLink: string;
+  language: "id" | "en";
 }
 
 export default function Home() {
@@ -51,6 +52,7 @@ export default function Home() {
     hasComplement: false,
     complementDesc: "",
     complementLink: "",
+    language: "id",
   });
   const [tweets, setTweets] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,6 +82,7 @@ export default function Home() {
           affiliateLink: form.affiliateLink || undefined,
           complementDesc: form.hasComplement ? form.complementDesc || undefined : undefined,
           complementLink: form.hasComplement ? form.complementLink || undefined : undefined,
+          language: form.language,
         }),
       });
       const data = await res.json();
@@ -130,9 +133,24 @@ export default function Home() {
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "var(--text-primary)", fontWeight: 700, fontSize: 13, flexShrink: 0,
           }}>S</div>
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)", lineHeight: 1 }}>Shopee Thread Generator</div>
             <div style={{ fontSize: 11, color: "var(--text-45)", marginTop: 3 }}>Bikin konten afiliasi yang ga keliatan iklan</div>
+          </div>
+          <div style={{
+            display: "flex", gap: 2, padding: 3,
+            background: "var(--bg-l3)", borderRadius: 10,
+            border: "1px solid var(--border)",
+          }}>
+            {(["id", "en"] as const).map((lang) => (
+              <button key={lang} onClick={() => set({ language: lang })} style={{
+                padding: "4px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600,
+                cursor: "pointer", border: "none", fontFamily: "inherit",
+                background: form.language === lang ? "var(--accent)" : "transparent",
+                color: form.language === lang ? "#fff" : "var(--text-45)",
+                transition: "all 0.2s",
+              }}>{lang.toUpperCase()}</button>
+            ))}
           </div>
         </div>
       </header>

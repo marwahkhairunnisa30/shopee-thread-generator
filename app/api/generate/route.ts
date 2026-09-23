@@ -5,6 +5,28 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// In-memory rate limiter: 3 requests per IP per hour
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 3;
+const WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number; resetIn: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    return { allowed: true, remaining: RATE_LIMIT - 1, resetIn: WINDOW_MS };
+  }
+
+  if (entry.count >= RATE_LIMIT) {
+    return { allowed: false, remaining: 0, resetIn: entry.resetAt - now };
+  }
+
+  entry.count += 1;
+  return { allowed: true, remaining: RATE_LIMIT - entry.count, resetIn: entry.resetAt - now };
+}
+
 const SYSTEM_PROMPT = `
 You are an expert Indonesian Twitter/X content creator specializing in affiliate storytelling. Your job is to write threads that feel like a trusted friend sharing a genuine discovery — not a brand account pushing products.
 
@@ -120,26 +142,53 @@ function buildUserPrompt(
   hook?: string,
   productDesc?: string,
   complementDesc?: string,
-  complementLink?: string
+  complementLink?: string,
+  language: "id" | "en" = "id"
 ): string {
   const formatLabel = FORMAT_LABELS[format] ?? format;
 
-  const ctaInstruction =
-    ctaType === "bio"
+  const isEn = language === "en";
+
+  const ctaInstruction = isEn
+    ? ctaType === "bio"
+      ? "Naturally redirect to the link in bio at the last tweet for the main product"
+      : `Include the main product affiliate link in the last tweet: ${affiliateLink}`
+    : ctaType === "bio"
       ? "Arahkan ke link di bio secara natural di tweet terakhir untuk produk utama"
       : `Masukkan link afiliasi produk utama ini di tweet terakhir: ${affiliateLink}`;
 
   const hookInstruction = hook && HOOK_LABELS[hook]
-    ? `\nTIPE HOOK TWEET 1: ${HOOK_LABELS[hook]}`
+    ? isEn
+      ? `\nHOOK TYPE FOR TWEET 1: ${HOOK_LABELS[hook]}`
+      : `\nTIPE HOOK TWEET 1: ${HOOK_LABELS[hook]}`
     : "";
 
   const productDescSection = productDesc
-    ? `\n\nDESKRIPSI PRODUK UTAMA (gunakan keunggulan & fitur ini secara natural di thread, jangan copy-paste mentah):\n${productDesc.slice(0, 1500)}`
+    ? isEn
+      ? `\n\nMAIN PRODUCT DESCRIPTION (use these highlights & features naturally in the thread, do NOT copy-paste verbatim):\n${productDesc.slice(0, 1500)}`
+      : `\n\nDESKRIPSI PRODUK UTAMA (gunakan keunggulan & fitur ini secara natural di thread, jangan copy-paste mentah):\n${productDesc.slice(0, 1500)}`
     : "";
 
   const complementSection = complementLink
-    ? `\n\nPRODUK COMPLIMENTARY: Ada produk pelengkap yang bisa di-mention secara natural di thread (bukan tweet utama) sebagai rekomendasi tambahan.${complementDesc ? `\nDeskripsi produk complimentary:\n${complementDesc.slice(0, 800)}` : ""}\nLink produk complimentary: ${complementLink}\nCara menyebut: natural, kayak "oh btw yang ini juga bagus buat [konteks]" — bukan promosi terpisah. Masukkan di 1-2 tweet tengah atau di tweet sebelum terakhir.`
+    ? isEn
+      ? `\n\nCOMPLEMENTARY PRODUCT: There is a complementary product that can be mentioned naturally in the thread (not as a separate promo) as an additional recommendation.${complementDesc ? `\nComplementary product description:\n${complementDesc.slice(0, 800)}` : ""}\nComplementary product link: ${complementLink}\nHow to mention it: naturally, like "oh btw this one is also great for [context]" — not a separate promotion. Include it in 1-2 middle tweets or the second-to-last tweet.`
+      : `\n\nPRODUK COMPLIMENTARY: Ada produk pelengkap yang bisa di-mention secara natural di thread (bukan tweet utama) sebagai rekomendasi tambahan.${complementDesc ? `\nDeskripsi produk complimentary:\n${complementDesc.slice(0, 800)}` : ""}\nLink produk complimentary: ${complementLink}\nCara menyebut: natural, kayak "oh btw yang ini juga bagus buat [konteks]" — bukan promosi terpisah. Masukkan di 1-2 tweet tengah atau di tweet sebelum terakhir.`
     : "";
+
+  const languageInstruction = isEn
+    ? `\nLANGUAGE: Write the entire thread in casual English. Gen Z tone — honest, relatable, occasionally funny. Use natural English slang (ngl, literally, no cap, lowkey, fr, plot twist, etc.) sparingly. Sound like a trusted friend on Twitter, NOT a brand copywriter.`
+    : "";
+
+  if (isEn) {
+    return `Create a Shopee affiliate Twitter thread with the following details:
+
+CONTENT TYPE: ${formatLabel}
+TWEET COUNT: ${tweetCount} tweets (format [1/${tweetCount}] to [${tweetCount}/${tweetCount}])
+INITIAL IDEA: ${idea}
+CTA: ${ctaInstruction}${hookInstruction}${languageInstruction}${productDescSection}${complementSection}
+
+Remember: max 280 characters per tweet, start directly with the hook.`;
+  }
 
   return `Buatkan Twitter thread afiliasi Shopee dengan detail berikut:
 
@@ -153,8 +202,22 @@ Ingat: max 280 karakter per tweet, mulai langsung dari hook.`;
 
 export async function POST(req: NextRequest) {
   try {
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+      req.headers.get("x-real-ip") ??
+      "unknown";
+
+    const { allowed, remaining, resetIn } = checkRateLimit(ip);
+    if (!allowed) {
+      const minutes = Math.ceil(resetIn / 60000);
+      return NextResponse.json(
+        { error: `Limit 3x per jam tercapai. Coba lagi dalam ${minutes} menit.` },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(resetIn / 1000)) } }
+      );
+    }
+
     const body = await req.json();
-    const { format, tweetCount, idea, ctaType, affiliateLink, hook, productDesc, complementDesc, complementLink } = body;
+    const { format, tweetCount, idea, ctaType, affiliateLink, hook, productDesc, complementDesc, complementLink, language } = body;
 
     if (!format || !tweetCount || !idea || !ctaType) {
       return NextResponse.json(
@@ -194,7 +257,8 @@ export async function POST(req: NextRequest) {
       hook,
       productDesc?.trim(),
       complementDesc?.trim(),
-      complementLink?.trim()
+      complementLink?.trim(),
+      language === "en" ? "en" : "id"
     );
 
     const response = await client.messages.create({
