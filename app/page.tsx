@@ -230,6 +230,14 @@ export default function Home() {
         position: "sticky", top: 0, zIndex: 10,
       }}>
         <div style={{ maxWidth: 640, margin: "0 auto", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <a href="https://marwahk-portfolio.vercel.app" style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            fontSize: 12, color: "var(--text-45)", textDecoration: "none",
+            flexShrink: 0, transition: "color .2s",
+          }} onMouseEnter={e => (e.currentTarget.style.color="var(--text-primary)")} onMouseLeave={e => (e.currentTarget.style.color="var(--text-45)")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back
+          </a>
           <div style={{
             width: 32, height: 32, borderRadius: 10, flexShrink: 0,
             background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%)",
