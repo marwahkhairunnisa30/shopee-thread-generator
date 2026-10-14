@@ -143,19 +143,21 @@ function buildUserPrompt(
   productDesc?: string,
   complementDesc?: string,
   complementLink?: string,
-  language: "id" | "en" = "id"
+  language: "id" | "en" = "id",
+  typeLabelOverride?: string,
+  ctaInstructionOverride?: string
 ): string {
-  const formatLabel = FORMAT_LABELS[format] ?? format;
+  const formatLabel = typeLabelOverride || FORMAT_LABELS[format] || format;
 
   const isEn = language === "en";
 
-  const ctaInstruction = isEn
+  const ctaInstruction = ctaInstructionOverride || (isEn
     ? ctaType === "bio"
       ? "Naturally redirect to the link in bio at the last tweet for the main product"
       : `Include the main product affiliate link in the last tweet: ${affiliateLink}`
     : ctaType === "bio"
       ? "Arahkan ke link di bio secara natural di tweet terakhir untuk produk utama"
-      : `Masukkan link afiliasi produk utama ini di tweet terakhir: ${affiliateLink}`;
+      : `Masukkan link afiliasi produk utama ini di tweet terakhir: ${affiliateLink}`);
 
   const hookInstruction = hook && HOOK_LABELS[hook]
     ? isEn
@@ -217,17 +219,13 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { format, tweetCount, idea, ctaType, affiliateLink, hook, productDesc, complementDesc, complementLink, language } = body;
+    const { format, tweetCount, idea, ctaType, affiliateLink, hook, productDesc, complementDesc, complementLink, language, typeLabel, ctaInstruction: bodyCtaInstruction } = body;
 
-    if (!format || !tweetCount || !idea || !ctaType) {
+    if (!tweetCount || !idea || !ctaType) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
-    }
-
-    if (!Object.keys(FORMAT_LABELS).includes(format)) {
-      return NextResponse.json({ error: "Invalid format" }, { status: 400 });
     }
 
     if (![3, 5, 7, 10].includes(Number(tweetCount))) {
@@ -241,15 +239,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Idea too short" }, { status: 400 });
     }
 
-    if (ctaType === "inline" && !affiliateLink?.trim()) {
-      return NextResponse.json(
-        { error: "Affiliate link required for inline CTA" },
-        { status: 400 }
-      );
-    }
-
     const userPrompt = buildUserPrompt(
-      format,
+      format || "testimoni",
       Number(tweetCount),
       idea.trim(),
       ctaType,
@@ -258,7 +249,9 @@ export async function POST(req: NextRequest) {
       productDesc?.trim(),
       complementDesc?.trim(),
       complementLink?.trim(),
-      language === "en" ? "en" : "id"
+      language === "en" ? "en" : "id",
+      typeLabel,
+      bodyCtaInstruction
     );
 
     const response = await client.messages.create({

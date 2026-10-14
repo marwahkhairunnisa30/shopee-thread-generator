@@ -1,53 +1,49 @@
 @import "tailwindcss";
 
+/* MK Counterweight tokens */
 :root {
-  /* Backgrounds */
-  --bg-deepest:   #060609;
-  --bg-base:      #0b0b10;
-  --bg-hero:      #0c0c14;
-  --bg-l1:        #131320;
-  --bg-l2:        #1c1c2a;
-  --bg-l3:        #252538;
-
-  /* Accent Red */
-  --accent:       #c03030;
-  --accent-hover: #b92b2b;
-  --accent-dark:  #8b1a1a;
-  --accent-deep:  #7a1710;
-
-  /* Text */
-  --text-primary: #eceaf5;
-  --text-92:      rgba(236,234,245,0.92);
-  --text-70:      rgba(236,234,245,0.70);
-  --text-50:      rgba(236,234,245,0.50);
-  --text-45:      rgba(236,234,245,0.45);
-  --text-35:      rgba(236,234,245,0.35);
-
-  /* Borders */
-  --border:       rgba(236,234,245,0.12);
-  --border-faint: rgba(236,234,245,0.07);
-
-  /* Warm */
-  --warm-accent:  #e8342b;
-  --warm-mid:     #ff6b5a;
-  --warm-hi:      #ffb3a4;
-
-  --background: var(--bg-base);
-  --foreground: var(--text-primary);
+  --bottle:     #121B16;
+  --bottle-dk:  #0E1511;
+  --moss:       #1F2B24;
+  --seam:       #2E3B33;
+  --seam-light: #3A4A3E;
+  --cream:      #EEE8DC;
+  --linen:      #DAD3C5;
+  --sage:       #A9B0A6;
+  --lichen:     #6F7A70;
+  --fern:       #4E5A51;
+  --champagne:  #C9B48A;
+  --font-sans:  'Onest', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:  'IBM Plex Mono', ui-monospace, monospace;
+  --ease:       cubic-bezier(.2,.7,.2,1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font-family: 'Onest', system-ui, sans-serif;
+  background: var(--bottle);
+  color: var(--cream);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-* {
-  box-sizing: border-box;
+a { color: var(--cream); text-decoration: none; }
+a:hover { color: var(--champagne); }
+
+input, select, textarea {
+  font-family: var(--font-sans);
+}
+textarea:focus, select:focus, input:focus { outline: none; }
+textarea::placeholder, input::placeholder { color: var(--lichen); }
+
+@keyframes mkFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes mkPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .35; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
