@@ -184,7 +184,7 @@ export default function Home() {
             <span style={{ color:"#4E5A51" }}>/</span>
             <span style={{ color:"#A9B0A6" }}>Affiliate Threads</span>
           </div>
-          <a href="https://marwahkhairunnisa.com" style={{ fontSize:14, color:"#A9B0A6" }}>← Back to portfolio</a>
+          <a href="https://marwahk-portfolio.vercel.app" style={{ fontSize:14, color:"#A9B0A6" }}>← Back to portfolio</a>
         </div>
       </nav>
 
