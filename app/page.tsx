@@ -291,7 +291,8 @@ export default function Page() {
       hd.style.background = gl ? 'rgba(8,20,51,.82)' : 'transparent'
       hd.style.borderColor = gl ? 'rgba(193,229,251,.16)' : 'transparent'
       hd.style.boxShadow = gl ? '0 10px 40px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.08)' : 'none'
-      hd.style.backdropFilter = hd.style.webkitBackdropFilter = gl ? 'blur(28px) saturate(1.8)' : 'none'
+      hd.style.backdropFilter = gl ? 'blur(28px) saturate(1.8)' : 'none'
+      ;(hd.style as unknown as Record<string, string>).webkitBackdropFilter = gl ? 'blur(28px) saturate(1.8)' : 'none'
       if (bk) { bk.style.top = gl ? '18px' : '14px'; bk.style.right = gl ? `calc(${m} + 9px)` : 'clamp(20px,4vw,48px)' }
     }
     window.addEventListener('scroll', upd, { passive: true })
