@@ -1,49 +1,42 @@
 @import "tailwindcss";
 
-/* MK Counterweight tokens */
 :root {
-  --bottle:     #121B16;
-  --bottle-dk:  #0E1511;
-  --moss:       #1F2B24;
-  --seam:       #2E3B33;
-  --seam-light: #3A4A3E;
-  --cream:      #EEE8DC;
-  --linen:      #DAD3C5;
-  --sage:       #A9B0A6;
-  --lichen:     #6F7A70;
-  --fern:       #4E5A51;
-  --champagne:  #C9B48A;
-  --font-sans:  'Onest', 'Helvetica Neue', Arial, sans-serif;
-  --font-mono:  'IBM Plex Mono', ui-monospace, monospace;
-  --ease:       cubic-bezier(.2,.7,.2,1);
+  --base:    #081433;
+  --hero:    #052D8F;
+  --accent:  #E9F958;
+  --white:   #F7F9FC;
+  --sky:     #C1E5FB;
+  --blue:    #4990E8;
+  --border:  rgba(193,229,251,.16);
+  --dim:     rgba(193,229,251,.08);
+  --dimmer:  rgba(193,229,251,.06);
+  --ph:      rgba(193,229,251,.42);
+  --font:    'Geist', 'Helvetica Neue', Arial, sans-serif;
+  --mono:    'Geist Mono', ui-monospace, monospace;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+*  { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
 
 body {
-  background: var(--bottle);
-  color: var(--cream);
-  font-family: var(--font-sans);
+  background: var(--base);
+  color: var(--white);
+  font-family: var(--font);
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
-a { color: var(--cream); text-decoration: none; }
-a:hover { color: var(--champagne); }
+a { color: inherit; text-decoration: none; }
+input, select, button, textarea { font: inherit; }
+input::placeholder, textarea::placeholder { color: var(--ph); }
+select option { color: var(--base); }
 
-input, select, textarea {
-  font-family: var(--font-sans);
-}
-textarea:focus, select:focus, input:focus { outline: none; }
-textarea::placeholder, input::placeholder { color: var(--lichen); }
+@keyframes mkpulse  { 0%,100%{opacity:1}  50%{opacity:.35} }
+@keyframes mkblink  { 0%,100%{opacity:1}  50%{opacity:0}   }
+@keyframes tarise   { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:none} }
+@keyframes tarup    { from{transform:translateY(110%)} to{transform:none} }
+@keyframes tafade   { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+@keyframes tapop    { 0%{transform:scale(.6);opacity:0} 60%{transform:scale(1.08);opacity:1} 100%{transform:none} }
 
-@keyframes mkFadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: none; }
-}
-@keyframes mkPulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: .35; }
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
