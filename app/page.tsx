@@ -35,6 +35,10 @@ const T = {
     noteLimit: 'Jatah 3 thread hari ini sudah habis. Bisa dipakai lagi besok mulai jam 00:00 WIB.',
     limitBtn: 'Jatah hari ini habis',
     left: (n: number) => `Sisa ${n} dari 3 thread hari ini`,
+    ownerOn: 'MODE OWNER · TANPA BATAS',
+    ownerPh: 'Kode owner', ownerGo: 'Buka',
+    ownerWrong: 'Kode salah.', ownerTooMany: 'Terlalu banyak percobaan. Coba lagi besok.',
+    ownerLock: 'Masukkan kode owner', ownerRelock: 'Mode owner aktif. Klik untuk kunci lagi',
     copy: 'Salin', copied: 'Tersalin', copyAll: 'Salin thread', copiedAll: 'Thread tersalin',
     errH: 'Thread-nya belum jadi.', errP: 'Generator tidak merespons. Coba lagi sebentar lagi.',
     out: 'natural, casual Bahasa Indonesia as spoken on Threads (bisa campur sedikit English)',
@@ -66,6 +70,10 @@ const T = {
     noteLimit: 'You’ve used all 3 threads for today. Come back after midnight Jakarta time (WIB).',
     limitBtn: 'Daily limit reached',
     left: (n: number) => `${n} of 3 threads left today`,
+    ownerOn: 'OWNER MODE · UNLIMITED',
+    ownerPh: 'Owner code', ownerGo: 'Unlock',
+    ownerWrong: 'Wrong code.', ownerTooMany: 'Too many attempts. Try again tomorrow.',
+    ownerLock: 'Enter owner code', ownerRelock: 'Owner mode on. Click to lock again',
     copy: 'Copy', copied: 'Copied', copyAll: 'Copy thread', copiedAll: 'Thread copied',
     errH: 'That thread didn\'t land.', errP: 'The generator didn\'t respond. Try again in a moment.',
     out: 'natural, casual English as written on Threads',
@@ -136,7 +144,7 @@ function Demo({ lang }: { lang: 'ID' | 'EN' }) {
         <span style={{ width: 32, height: 32, borderRadius: '50%', background: s.accent, color: s.hero, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700 }}>K</span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
           <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, ...mono, color: s.sky }}>
-            <span>@kamu · {i + 1}/3</span>
+            <span>@you · {i + 1}/3</span>
             {lk > 0 ? heart(lk, true) : null}
           </span>
           {typing
@@ -232,16 +240,47 @@ export default function Page() {
   const [showDetail, setShowDetail] = useState(false)
   const [product, setProduct] = useState('')
   const [detail, setDetail] = useState('')
-  const [lang, setLang] = useState<Lang>('ID')
+  const [lang, setLang] = useState<Lang>('EN')
   const [status, setStatus] = useState<Status>('idle')
   const [tweets, setTweets] = useState<string[]>([])
-  const [tLang, setTLang] = useState<Lang>('ID')
+  const [tLang, setTLang] = useState<Lang>('EN')
   const [alt, setAlt] = useState<string[] | null>(null)
   const [altLang, setAltLang] = useState<Lang | null>(null)
   const [translating, setTranslating] = useState(false)
   const [copied, setCopied] = useState(-1)
   const [copiedAll, setCopiedAll] = useState(false)
   const [remaining, setRemaining] = useState<number | null>(null)
+  const [ownerCode, setOwnerCode] = useState<string | null>(null)
+  const [ownerOpen, setOwnerOpen] = useState(false)
+  const [ownerInput, setOwnerInput] = useState('')
+  const [ownerError, setOwnerError] = useState<'' | 'wrong' | 'limit'>('')
+  const [ownerBusy, setOwnerBusy] = useState(false)
+
+  useEffect(() => {
+    try { setOwnerCode(localStorage.getItem('mk-owner-code')) } catch {}
+  }, [])
+
+  const saveOwnerCode = (code: string | null) => {
+    setOwnerCode(code)
+    try { code ? localStorage.setItem('mk-owner-code', code) : localStorage.removeItem('mk-owner-code') } catch {}
+  }
+
+  const unlockOwner = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!ownerInput || ownerBusy) return
+    setOwnerBusy(true); setOwnerError('')
+    try {
+      const res = await fetch('/api/owner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: ownerInput }),
+      })
+      if (res.ok) { saveOwnerCode(ownerInput); setRemaining(null); setOwnerOpen(false); setOwnerInput('') }
+      else setOwnerError(res.status === 429 ? 'limit' : 'wrong')
+    } catch { setOwnerError('wrong') } finally { setOwnerBusy(false) }
+  }
+
+  const apiHeaders: Record<string, string> = { 'Content-Type': 'application/json', ...(ownerCode ? { 'x-owner-code': ownerCode } : {}) }
 
   // ── cursor
   useEffect(() => {
@@ -327,19 +366,21 @@ export default function Page() {
       const [res] = await Promise.all([
         fetch('/api/generate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: apiHeaders,
           body: JSON.stringify({ idea, format, hook, count, cta, product, detail, language: lang }),
         }),
         new Promise(r => setTimeout(r, PASS * PASSES * 1000 + 150)),
       ])
       if (res.status === 429) {
+        if (ownerCode) saveOwnerCode(null)
         setRemaining(0); setStatus('idle'); return
       }
       if (!res.ok) { setStatus('error'); return }
       const data = await res.json()
-      setTweets(data.tweets); setRemaining(data.remaining); setStatus('done')
+      if (ownerCode && !data.owner) saveOwnerCode(null)
+      setTweets(data.tweets); setRemaining(data.owner ? null : data.remaining); setStatus('done')
     } catch { setStatus('error') }
-  }, [idea, format, hook, count, cta, product, detail, lang, status])
+  }, [idea, format, hook, count, cta, product, detail, lang, status, ownerCode])
 
   // ── lang switch (with translation)
   const switchLang = useCallback(async (newLang: Lang) => {
@@ -350,7 +391,7 @@ export default function Page() {
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders,
         body: JSON.stringify({ translateFrom: tweets, language: newLang }),
       })
       if (res.ok) {
@@ -358,7 +399,7 @@ export default function Page() {
         setAlt(data.tweets); setAltLang(newLang)
       }
     } finally { setTranslating(false) }
-  }, [lang, status, tLang, altLang, translating, tweets])
+  }, [lang, status, tLang, altLang, translating, tweets, ownerCode])
 
   const t = T[lang]
   const len = idea.trim().length
@@ -404,7 +445,7 @@ export default function Page() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(16px,2.6vh,24px)', minWidth: 0 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: s.mono, fontSize: 12, letterSpacing: '.1em', color: s.accent, whiteSpace: 'nowrap', animation: `tafade 700ms ${s.ease} both` }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.accent, animation: 'mkpulse 1.6s ease-in-out infinite' }} />
-            {t.eyebrow}
+            {T.EN.eyebrow}
           </span>
           <h1 style={{ margin: 0, fontSize: 'clamp(60px,min(8.4vw,14vh),150px)', fontWeight: 600, letterSpacing: '-0.075em', lineHeight: .86, display: 'flex', flexDirection: 'column' }}>
             <span style={{ display: 'block', overflow: 'hidden', paddingBottom: '.06em' }}>
@@ -415,15 +456,15 @@ export default function Page() {
             </span>
           </h1>
           <p style={{ margin: 0, maxWidth: 460, fontSize: 'clamp(17px,1.4vw,21px)', lineHeight: 1.4, color: s.sky, textWrap: 'pretty' as React.CSSProperties['textWrap'], animation: `tafade 700ms 380ms ${s.ease} both` }}>
-            {t.lede} <span style={{ color: s.white }}>{t.lede2}</span>
+            {T.EN.lede} <span style={{ color: s.white }}>{T.EN.lede2}</span>
           </p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', borderRadius: 28, background: s.base, overflow: 'hidden', minWidth: 0, animation: `tafade 900ms 300ms ${s.ease} both` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '16px 22px', borderBottom: `1px solid ${s.border}`, fontFamily: s.mono, fontSize: 11, letterSpacing: '.1em', color: s.sky }}>
-            <span>{t.demoHead}</span><span style={{ color: s.accent }}>LIVE</span>
+            <span>{T.EN.demoHead}</span><span style={{ color: s.accent }}>LIVE</span>
           </div>
           <div style={{ padding: 22 }}>
-            <Demo lang={lang} />
+            <Demo lang="EN" />
           </div>
         </div>
       </section>
@@ -554,7 +595,9 @@ export default function Page() {
                   <span>{ctaLabel}</span><span>→</span>
                 </button>
             }
-            {remaining !== null && (
+            {ownerCode ? (
+              <p style={{ margin: '14px 0 0', fontFamily: s.mono, fontSize: 12, letterSpacing: '.06em', color: s.accent }}>{t.ownerOn}</p>
+            ) : remaining !== null && (
               <p style={{ margin: '14px 0 0', fontFamily: s.mono, fontSize: 12, letterSpacing: '.06em', color: remaining === 0 ? s.accent : 'rgba(193,229,251,.6)' }}>
                 {remaining === 0 ? t.noteLimit : t.left(remaining)}
               </p>
@@ -669,7 +712,7 @@ export default function Page() {
 
         {/* Footer bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px 32px', paddingTop: 20, borderTop: `1.5px solid ${s.hero}` }}>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
             {/* LinkedIn */}
             <a href="https://linkedin.com/in/marwahkha" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"
               style={{ width: 48, height: 48, borderRadius: '50%', background: s.hero, color: s.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: `transform 200ms ${s.ease}` }}>
@@ -692,6 +735,33 @@ export default function Page() {
                 <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.48.71.31 1.26.49 1.7.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35zM12.05 21.8h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88zm8.41-18.3A11.81 11.81 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.16-3.48-8.41z" />
               </svg>
             </a>
+            {/* Owner lock */}
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginLeft: 'clamp(12px,3vw,32px)' }}>
+              <button type="button"
+                aria-label={ownerCode ? T.EN.ownerRelock : T.EN.ownerLock} title={ownerCode ? T.EN.ownerRelock : T.EN.ownerLock}
+                onClick={() => {
+                  if (ownerCode) { saveOwnerCode(null); setRemaining(null); return }
+                  setOwnerOpen(v => !v); setOwnerError('')
+                }}
+                style={{ width: 48, height: 48, borderRadius: '50%', border: `1.5px solid ${ownerCode ? s.hero : 'rgba(5,45,143,.3)'}`, background: ownerCode ? s.hero : 'transparent', color: ownerCode ? s.accent : s.hero, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, transition: `background 200ms ${s.ease}, border-color 200ms ${s.ease}` }}>
+                <svg viewBox="0 0 24 24" style={{ width: 20, height: 20 }} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="11" width="14" height="9" rx="2" />
+                  <path d={ownerCode ? 'M8 11V8a4 4 0 0 1 7.5-1.9' : 'M8 11V8a4 4 0 0 1 8 0v3'} />
+                </svg>
+              </button>
+              {ownerOpen && !ownerCode && (
+                <form onSubmit={unlockOwner} style={{ display: 'flex', alignItems: 'center', gap: 6, animation: `tafade 300ms ${s.ease} both` }}>
+                  <input type="password" autoFocus autoComplete="current-password" value={ownerInput}
+                    onChange={e => { setOwnerInput(e.target.value); setOwnerError('') }} placeholder={T.EN.ownerPh}
+                    style={{ boxSizing: 'border-box', width: 150, minHeight: 44, padding: '0 16px', borderRadius: 999, border: `1.5px solid ${s.hero}`, background: 'rgba(255,255,255,.5)', color: s.hero, fontSize: 15, outlineColor: s.hero }} />
+                  <button type="submit" disabled={!ownerInput || ownerBusy}
+                    style={{ minHeight: 44, padding: '0 18px', borderRadius: 999, border: 0, background: s.hero, color: s.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', opacity: !ownerInput || ownerBusy ? .5 : 1 }}>
+                    {T.EN.ownerGo}
+                  </button>
+                  {ownerError && <span role="alert" style={{ fontSize: 13, fontWeight: 500 }}>{ownerError === 'limit' ? T.EN.ownerTooMany : T.EN.ownerWrong}</span>}
+                </form>
+              )}
+            </div>
           </div>
           <span style={{ fontFamily: s.mono, fontSize: 12, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>
             © 2026 MARWAH K · JAKARTA <span data-mk-clock="">--:--:--</span>
