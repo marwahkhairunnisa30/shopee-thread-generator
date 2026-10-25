@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <!-- Same mark as the TailoredAI favicon: Reverse MK monogram on a Cobalt rounded square, Lime data point -->
+  <rect width="120" height="120" rx="28" fill="#052D8F"/>
+  <g fill="none" stroke="#F7F9FC" stroke-width="9" stroke-linecap="square">
+    <polyline points="22,92 22,30 42,62 62,30 62,92"/>
+    <line x1="78" y1="30" x2="78" y2="92"/>
+    <polyline points="96,30 78,62 96,92"/>
+  </g>
+  <circle cx="96" cy="30" r="8" fill="#E9F958" stroke="#052D8F" stroke-width="2.5"/>
+</svg>
