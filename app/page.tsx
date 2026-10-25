@@ -736,7 +736,7 @@ export default function Page() {
               </svg>
             </a>
             {/* Owner lock */}
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginLeft: 'clamp(12px,3vw,32px)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
               <button type="button"
                 aria-label={ownerCode ? T.EN.ownerRelock : T.EN.ownerLock} title={ownerCode ? T.EN.ownerRelock : T.EN.ownerLock}
                 onClick={() => {
