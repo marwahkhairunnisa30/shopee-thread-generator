@@ -32,6 +32,9 @@ const T = {
     noteShort: 'Sedikit lagi. Minimal 20 karakter.',
     noteReady: 'Ide siap. Klik buat thread.',
     noteBusy: 'Menyusun cerita…',
+    noteLimit: 'Jatah 3 thread hari ini sudah habis. Bisa dipakai lagi besok mulai jam 00:00 WIB.',
+    limitBtn: 'Jatah hari ini habis',
+    left: (n: number) => `Sisa ${n} dari 3 thread hari ini`,
     copy: 'Salin', copied: 'Tersalin', copyAll: 'Salin thread', copiedAll: 'Thread tersalin',
     errH: 'Thread-nya belum jadi.', errP: 'Generator tidak merespons. Coba lagi sebentar lagi.',
     out: 'natural, casual Bahasa Indonesia as spoken on Threads (bisa campur sedikit English)',
@@ -60,6 +63,9 @@ const T = {
     noteShort: 'A few more words. 20 characters minimum.',
     noteReady: 'Idea ready. Hit generate.',
     noteBusy: 'Shaping the story…',
+    noteLimit: 'You’ve used all 3 threads for today. Come back after midnight Jakarta time (WIB).',
+    limitBtn: 'Daily limit reached',
+    left: (n: number) => `${n} of 3 threads left today`,
     copy: 'Copy', copied: 'Copied', copyAll: 'Copy thread', copiedAll: 'Thread copied',
     errH: 'That thread didn\'t land.', errP: 'The generator didn\'t respond. Try again in a moment.',
     out: 'natural, casual English as written on Threads',
@@ -235,6 +241,7 @@ export default function Page() {
   const [translating, setTranslating] = useState(false)
   const [copied, setCopied] = useState(-1)
   const [copiedAll, setCopiedAll] = useState(false)
+  const [remaining, setRemaining] = useState<number | null>(null)
 
   // ── cursor
   useEffect(() => {
@@ -326,14 +333,11 @@ export default function Page() {
         new Promise(r => setTimeout(r, PASS * PASSES * 1000 + 150)),
       ])
       if (res.status === 429) {
-        const data = await res.json()
-        const mins = Math.ceil((data.retryAfter ?? 3600) / 60)
-        alert(`Rate limit tercapai. Coba lagi dalam ${mins} menit.`)
-        setStatus('idle'); return
+        setRemaining(0); setStatus('idle'); return
       }
       if (!res.ok) { setStatus('error'); return }
       const data = await res.json()
-      setTweets(data.tweets); setStatus('done')
+      setTweets(data.tweets); setRemaining(data.remaining); setStatus('done')
     } catch { setStatus('error') }
   }, [idea, format, hook, count, cta, product, detail, lang, status])
 
@@ -358,14 +362,14 @@ export default function Page() {
 
   const t = T[lang]
   const len = idea.trim().length
-  const ok = len >= 20 && status !== 'loading'
+  const ok = len >= 20 && status !== 'loading' && remaining !== 0
   const shown = altLang === lang && alt ? alt : tweets
   const n = status === 'done' ? shown.length : count
   const fmt = FORMATS.find(x => x.id === format)?.[lang][0] ?? format
-  const ctaLabel = status === 'loading' ? t.busy : status === 'done' ? t.regen : t.gen
+  const ctaLabel = remaining === 0 ? t.limitBtn : status === 'loading' ? t.busy : status === 'done' ? t.regen : t.gen
   const statusLabel = translating ? t.translating : ({ idle: t.idle, loading: t.writing, done: t.ready + n + t.tw, error: t.error } as Record<string, string>)[status]
   const metaLabel = `${fmt} · ${hook}`.toUpperCase()
-  const noteText = status === 'loading' ? t.noteBusy : len >= 20 ? t.noteReady : len > 0 ? t.noteShort : t.noteIdle
+  const noteText = remaining === 0 ? t.noteLimit : status === 'loading' ? t.noteBusy : len >= 20 ? t.noteReady : len > 0 ? t.noteShort : t.noteIdle
 
   return (
     <div style={{ background: s.base, color: s.white, fontFamily: "'Geist',sans-serif", overflowX: 'clip' }}>
@@ -550,6 +554,11 @@ export default function Page() {
                   <span>{ctaLabel}</span><span>→</span>
                 </button>
             }
+            {remaining !== null && (
+              <p style={{ margin: '14px 0 0', fontFamily: s.mono, fontSize: 12, letterSpacing: '.06em', color: remaining === 0 ? s.accent : 'rgba(193,229,251,.6)' }}>
+                {remaining === 0 ? t.noteLimit : t.left(remaining)}
+              </p>
+            )}
           </div>
         </form>
 

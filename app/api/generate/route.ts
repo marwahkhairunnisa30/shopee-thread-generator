@@ -3,22 +3,52 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-const RATE_LIMIT = 3
-const WINDOW_MS = 60 * 60 * 1000
+const GENERATE_LIMIT = 3
+const TRANSLATE_LIMIT = 10
+const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000
 
-function checkRateLimit(ip: string): { allowed: boolean; remaining: number; resetIn: number } {
-  const now = Date.now()
-  const entry = rateLimitMap.get(ip)
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + WINDOW_MS })
-    return { allowed: true, remaining: RATE_LIMIT - 1, resetIn: WINDOW_MS }
+const REDIS_URL = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL
+const REDIS_TOKEN = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN
+
+// Used only until Redis is connected; resets whenever the serverless instance does.
+const memoryCounts = new Map<string, number>()
+
+function jakartaDay(now: number) {
+  const shifted = now + JAKARTA_OFFSET_MS
+  const day = new Date(shifted).toISOString().slice(0, 10)
+  const nextMidnight = Math.floor(shifted / 86_400_000 + 1) * 86_400_000 - JAKARTA_OFFSET_MS
+  return { day, resetIn: nextMidnight - now }
+}
+
+async function incrementCount(key: string): Promise<number> {
+  if (!REDIS_URL || !REDIS_TOKEN) {
+    const n = (memoryCounts.get(key) ?? 0) + 1
+    memoryCounts.set(key, n)
+    return n
   }
-  if (entry.count >= RATE_LIMIT) {
-    return { allowed: false, remaining: 0, resetIn: entry.resetAt - now }
-  }
-  entry.count++
-  return { allowed: true, remaining: RATE_LIMIT - entry.count, resetIn: entry.resetAt - now }
+  const res = await fetch(`${REDIS_URL}/pipeline`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+    body: JSON.stringify([['INCR', key], ['EXPIRE', key, 172800]]),
+    cache: 'no-store',
+  })
+  if (!res.ok) throw new Error(`Redis ${res.status}`)
+  const [incr] = await res.json()
+  return Number(incr.result)
+}
+
+async function checkDailyLimit(kind: 'gen' | 'tr', ip: string, limit: number) {
+  const { day, resetIn } = jakartaDay(Date.now())
+  const used = await incrementCount(`rl:${kind}:${day}:${ip}`)
+  return { allowed: used <= limit, remaining: Math.max(0, limit - used), resetIn }
+}
+
+function limitResponse(resetIn: number) {
+  const retryAfter = Math.ceil(resetIn / 1000)
+  return NextResponse.json(
+    { error: 'Rate limit exceeded', retryAfter },
+    { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+  )
 }
 
 const FORMATS: Record<string, [string, string]> = {
@@ -37,18 +67,15 @@ const LANG_OUT: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? 'unknown'
-  const { allowed, remaining, resetIn } = checkRateLimit(ip)
-  if (!allowed) {
-    const retryAfter = Math.ceil(resetIn / 1000)
-    return NextResponse.json(
-      { error: 'Rate limit exceeded', retryAfter },
-      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
-    )
-  }
-
   const { idea, format, hook, count, cta, product, detail, language, translateFrom } = await req.json()
 
   if (translateFrom) {
+    const valid = Array.isArray(translateFrom) && translateFrom.length <= 10 &&
+      translateFrom.every((t: unknown) => typeof t === 'string' && t.length <= 400)
+    if (!valid) return NextResponse.json({ error: 'Invalid thread' }, { status: 400 })
+    const limit = await checkDailyLimit('tr', ip, TRANSLATE_LIMIT)
+    if (!limit.allowed) return limitResponse(limit.resetIn)
+
     const prompt = `Translate this Threads post thread into ${LANG_OUT[language] ?? LANG_OUT.EN}. Keep tone, structure and the same number of tweets. Return ONLY a JSON array of strings.\n${JSON.stringify(translateFrom)}`
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -63,10 +90,16 @@ export async function POST(req: NextRequest) {
   if (!idea || idea.trim().length < 20) {
     return NextResponse.json({ error: 'Idea too short' }, { status: 400 })
   }
+  if (idea.length > 2000 || String(product ?? '').length > 300 || String(detail ?? '').length > 1500) {
+    return NextResponse.json({ error: 'Input too long' }, { status: 400 })
+  }
+
+  const { allowed, remaining, resetIn } = await checkDailyLimit('gen', ip, GENERATE_LIMIT)
+  if (!allowed) return limitResponse(resetIn)
 
   const f = FORMATS[format] ?? FORMATS.Testimoni
   const langOut = LANG_OUT[language] ?? LANG_OUT.ID
-  const n = Number(count) || 5
+  const n = [3, 5, 7, 10].includes(Number(count)) ? Number(count) : 5
 
   const prompt = `You write Shopee affiliate threads for Threads/X that read like a real personal story, never like an ad.
 Idea: ${idea.trim()}
